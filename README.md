@@ -162,6 +162,13 @@ In order to make these features work, we have to control where the terminal curs
 and we have to repaint the trailer any time any other content appears.
 That means we need to do some work to maintain the state of the terminal every time there's any new output.
 
+We _do_ make this as anti-fragile as possible, though.
+We keep the cursor positioned such that any uncontrolled output will corrupt the trailer content,
+but the next repaint of the trailer will _not_ paint over the uncontrolled output (as long as it ended in a linebreak).
+This is as about antifragile as is possible within the contraints of terminal rendering.
+
+
+
 
 
 License

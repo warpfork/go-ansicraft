@@ -105,10 +105,7 @@ func (tc *Controller) SetTrailer(lines [][]byte) {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 
-	h := tc.currentTrailerHeight()
 	tc.trailer = lines
-	tc.cursorMoveUp(h)
-	tc.cursorPositionRestore()
 	tc.clearToEnd()
 	tc.printTrailer()
 }
@@ -117,10 +114,12 @@ func (tc *Controller) Write(msg []byte) (int, error) {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 
-	tc.cursorMoveUp(tc.currentTrailerHeight())
-	tc.cursorPositionRestore()
+	// The cursor should already be at the start of the previous trailer.
+	// (We parked it here already, for anti-fragility purposes, in case any other uncontrolled writes reached the terminal without our interception.)
+	// Therefore we can start by immediately clearing the rest of the screen, which should only be the old trailer.
 	tc.clearToEnd()
-	// Behavior has to branch based on whether we're about to end up with a partial line on the end -- we have to save cursor before printing that if it's present.
+	// Behavior has to branch based on whether we're about to end up with a partial line on the end -- we have to save cursor before printing that if it's present, and buffer the partial line for some additional handling.
+	// (... the cursor saving distinction has not turned out to be load bearing; see comments about r-A-J vs s/u approach -- but the buffers still are.)
 	switch idxLastBr := bytes.LastIndexByte(msg, '\n'); idxLastBr {
 	case -1: // If no breaks: entire thing is a fragment.  Cursor save unchanged.  Append buffer, write whole trailer (includes the partial buffer).
 		tc.partial.Write(msg)
@@ -130,9 +129,9 @@ func (tc *Controller) Write(msg []byte) (int, error) {
 		tc.cursorPositionSave()
 	default: // If breaks in the middle: flush current partial, clear that buf, write the full lines, update cursor, then store the new trailing partial line.  Finally, trailer (includes the new partial buffer).
 		tc.partial.WriteTo(tc.wr)
-		tc.wr.Write(msg[0 : idxLastBr+1])
+		tc.wr.Write(msg[0 : idxLastBr+1]) // +1 to include the linebreak.
 		tc.cursorPositionSave()
-		tc.partial.Write(msg[idxLastBr+1:])
+		tc.partial.Write(msg[idxLastBr+1:]) // +1 to keep the linebreak out of the partial.
 	}
 	//fmt.Fprintf(os.Stderr, "(write %q; partial buf at end of write contains: %q)\n", msg, tc.partial.Bytes())
 	tc.printTrailer()
@@ -153,8 +152,6 @@ func (tc *Controller) cursorMoveUp(n int) {
 	}
 }
 func (tc *Controller) clearToEnd() {
-	// tc.wr.Write([]byte("X"))
-	// time.Sleep(100 * time.Millisecond)
 	tc.wr.Write([]byte("\x1B[J")) // Clear from cursor to end of screen.
 }
 
@@ -180,4 +177,14 @@ func (tc *Controller) printTrailer() {
 		tc.wr.Write(line)
 		tc.wr.Write([]byte{'\n'})
 	}
+
+	// Move the cursor back to the top of the trailer.
+	// This makes the system more anti-fragile, because if any uncontrolled writes reach the terminal,
+	//  now they'll smash over our trailer content... and while that may be a bummer, at least *we're* being a good actor:
+	//   as long as that uncontrolled content ended with a linebreak, then we won't smash over it when we next rerender.
+	//    It'll still end up flowing into scrollback, and overall the rendering should experience a graceful recovery.
+	// There is one downer to doing this here, rather than just before repainting:
+	//  it means the cursor is flashing somewhere above the trailer, which might not be what the user would visually expect.
+	tc.cursorMoveUp(tc.currentTrailerHeight())
+	tc.cursorPositionRestore()
 }
