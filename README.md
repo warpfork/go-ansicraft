@@ -169,6 +169,15 @@ This is as about antifragile as is possible within the contraints of terminal re
 
 
 
+I want to know more about ANSI terminal codes!
+----------------------------------------------
+
+Here's some various good reference materials:
+
+- https://en.wikipedia.org/wiki/ANSI_escape_code -- ANSI terminal codes in general
+- https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797 -- ANSI terminal codes in general
+- https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda -- hyperlinks, as an extension to ANSI (not relevant to this library, but interesting for how the conventions can be extended!)
+
 
 
 License
