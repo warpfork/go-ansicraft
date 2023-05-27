@@ -67,7 +67,7 @@ The main vibe I wanted from this one is truthful mechanical sympathy to the real
 Help me interact with the terminal, but don't try to hide it, either.
 Terminals are touchy beasts.
 Trying to totally abstract yourself from the realities of them too much results in code you can't compose,
-or has terrifying edge cases that you become powerless to handle if the library is trying to hard to shield you from messy reality.
+or has terrifying edge cases that you become powerless to handle if the library is trying too hard to shield you from messy reality.
 
 So: we have *one* object that handles talking to terminals.
 It wraps a regular `io.Writer`, and that's that.
